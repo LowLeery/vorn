@@ -1,241 +1,230 @@
+"""Vorn-2: an experimental duplex-sponge AEAD built on a 512-bit ARX permutation.
+
+EXPERIMENTAL. Not reviewed by third parties. Do not use to protect real secrets.
+See SPEC.md for the full specification and ANALYSIS.md for the analysis done so far.
+"""
+
+import base64
+import binascii
 import hashlib
 import hmac
 import secrets
+import struct
+from math import isqrt
 
-__version__ = "0.1.0"
-__all__ = ["encrypt", "decrypt", "VornError"]
+__version__ = "0.2.0"
+__all__ = ["encrypt", "decrypt", "seal", "unseal", "VornError", "__version__"]
+
+# ---------------------------------------------------------------- parameters
+MASK = 0xFFFFFFFF
+STATE_LEN = 64  # 512-bit state = 16 little-endian 32-bit words
+RATE = 32  # bytes absorbed/squeezed per permutation call
+KEY_LEN = 32
+NONCE_LEN = 16
+TAG_LEN = 16
+SALT_LEN = 16
+ROUNDS = 20
+LABEL = b"Vorn-2 AEAD v0.2"  # 16 bytes, domain label placed in the state at init
+MAGIC = b"VRN2"
+HEADER_LEN = len(MAGIC) + 3 + SALT_LEN + NONCE_LEN  # magic, log_n, r, p, salt, nonce
+DEFAULT_LOG_N = 16
+MAX_SCRYPT_BYTES = 1 << 29  # refuse scrypt settings that would need more than 512 MiB
+
+assert len(LABEL) == 16
 
 
 class VornError(Exception):
-    pass
+    """Raised for malformed input, wrong password, or failed authentication."""
 
 
-def _generate_primes(limit: int = 120) -> tuple[int, ...]:
-    primes: list[int] = []
-    num = 2
-    while len(primes) < limit:
-        if all(num % p != 0 for p in primes if p * p <= num):
-            primes.append(num)
-        num += 1
+# ---------------------------------------------------------------- permutation
+def _first_primes(count: int) -> tuple:
+    primes = []
+    n = 2
+    while len(primes) < count:
+        if all(n % p for p in primes if p * p <= n):
+            primes.append(n)
+        n += 1
     return tuple(primes)
 
 
-_PRIMES = _generate_primes(120)
+_PRIMES = _first_primes(ROUNDS)
+# Round constants: fractional part of sqrt(prime), top 32 bits.
+_RC = tuple(isqrt(p << 64) & MASK for p in _PRIMES)
+# Prime hopping: the lane that receives round constant r is (prime_r mod 16).
+_LANE = tuple(p % 16 for p in _PRIMES)
+
+_COLUMNS = ((0, 4, 8, 12), (1, 5, 9, 13), (2, 6, 10, 14), (3, 7, 11, 15))
+_DIAGONALS = ((0, 5, 10, 15), (1, 6, 11, 12), (2, 7, 8, 13), (3, 4, 9, 14))
 
 
-def _ct_lookup(table, target_idx: int) -> int:
-    result = 0
-    for i, val in enumerate(table):
-        mask = -int(i == target_idx)
-        result |= val & mask
-    return result
+def _permute(state: bytearray, rounds: int = ROUNDS) -> None:
+    """Apply the Vorn-P permutation to a 64-byte state, in place."""
+    if not 1 <= rounds <= ROUNDS:
+        raise ValueError("rounds out of range")
+    s = list(struct.unpack("<16I", state))
+    for r in range(rounds):
+        s[_LANE[r]] ^= _RC[r]
+        for a, b, c, d in _DIAGONALS if r & 1 else _COLUMNS:
+            x, y, z, w = s[a], s[b], s[c], s[d]
+            x = (x + y) & MASK
+            w ^= x
+            w = ((w << 16) | (w >> 16)) & MASK
+            z = (z + w) & MASK
+            y ^= z
+            y = ((y << 12) | (y >> 20)) & MASK
+            x = (x + y) & MASK
+            w ^= x
+            w = ((w << 8) | (w >> 24)) & MASK
+            z = (z + w) & MASK
+            y ^= z
+            y = ((y << 7) | (y >> 25)) & MASK
+            s[a], s[b], s[c], s[d] = x, y, z, w
+    state[:] = struct.pack("<16I", *s)
 
 
-def _ct_prime_index(prime_val: int) -> int:
-    result = -1
-    for i in range(100):
-        mask = -int(_PRIMES[i] == prime_val)
-        result = (result & ~mask) | (i & mask)
-    if result == -1:
-        raise VornError("Invalid state encountered during decryption.")
-    return result
+# ---------------------------------------------------------------- duplex AEAD
+def _xor(a, b) -> bytes:
+    n = len(a)
+    return (int.from_bytes(a, "little") ^ int.from_bytes(b[:n], "little")).to_bytes(n, "little")
 
 
-def _derive_keys(password: str, nonce: bytes, scrypt_n: int = 16384):
+def _run(key: bytes, nonce: bytes, aad: bytes, data: bytes, decrypting: bool, rounds: int = ROUNDS):
+    # initial state: label and nonce in the rate half, the whole key in the capacity half
+    st = bytearray(LABEL + nonce + key)
+    _permute(st, rounds)
+
+    # associated data, always followed by one padded block (pad10*)
+    i = 0
+    while len(aad) - i >= RATE:
+        st[:RATE] = _xor(st[:RATE], aad[i : i + RATE])
+        _permute(st, rounds)
+        i += RATE
+    last = aad[i:] + b"\x80"
+    st[: len(last)] = _xor(st[: len(last)], last)
+    _permute(st, rounds)
+
+    st[STATE_LEN - 1] ^= 0x01  # domain separation: associated data -> message
+
+    # message: the rate part of the state is overwritten with ciphertext
+    out = bytearray()
+    i = 0
+    n = len(data)
+    while n - i >= RATE:
+        blk = bytes(data[i : i + RATE])
+        o = _xor(blk, st[:RATE])
+        st[:RATE] = blk if decrypting else o
+        _permute(st, rounds)
+        out += o
+        i += RATE
+    rem = bytes(data[i:])
+    m = len(rem)
+    o = _xor(rem, st[:m])
+    st[:m] = rem if decrypting else o
+    st[m] ^= 0x80
+    out += o
+
+    # finalisation: key goes into the capacity, tag is read from the last 16 bytes
+    st[RATE:STATE_LEN] = _xor(st[RATE:STATE_LEN], key)
+    _permute(st, rounds)
+    tag = _xor(st[48:64], key[16:32])
+    return bytes(out), tag
+
+
+def _check_key_nonce(key: bytes, nonce: bytes) -> None:
+    if not isinstance(key, (bytes, bytearray)) or len(key) != KEY_LEN:
+        raise VornError("Key must be exactly 32 bytes.")
+    if not isinstance(nonce, (bytes, bytearray)) or len(nonce) != NONCE_LEN:
+        raise VornError("Nonce must be exactly 16 bytes.")
+
+
+def seal(key: bytes, nonce: bytes, plaintext: bytes, aad: bytes = b"") -> bytes:
+    """Low-level AEAD. Returns ciphertext || 16-byte tag. Never reuse a (key, nonce) pair."""
+    _check_key_nonce(key, nonce)
+    ct, tag = _run(bytes(key), bytes(nonce), bytes(aad), bytes(plaintext), False)
+    return ct + tag
+
+
+def unseal(key: bytes, nonce: bytes, sealed: bytes, aad: bytes = b"") -> bytes:
+    """Inverse of seal(). Raises VornError if authentication fails."""
+    _check_key_nonce(key, nonce)
+    if len(sealed) < TAG_LEN:
+        raise VornError("Malformed ciphertext.")
+    ct, tag = bytes(sealed[:-TAG_LEN]), bytes(sealed[-TAG_LEN:])
+    pt, expected = _run(bytes(key), bytes(nonce), bytes(aad), ct, True)
+    if not hmac.compare_digest(tag, expected):
+        raise VornError("Authentication failed: wrong password or modified data.")
+    return pt
+
+
+# ---------------------------------------------------------------- password API
+def _check_scrypt_params(log_n: int, r: int, p: int) -> None:
+    if not (1 <= log_n <= 24 and 1 <= r <= 32 and 1 <= p <= 16):
+        raise VornError("Unsupported scrypt parameters.")
+    if 128 * r * (1 << log_n) > MAX_SCRYPT_BYTES:
+        raise VornError("Unsupported scrypt parameters.")
+
+
+def _kdf(password, salt: bytes, log_n: int, r: int, p: int) -> bytes:
+    if isinstance(password, str):
+        password = password.encode("utf-8")
     if not password:
         raise VornError("Password must not be empty.")
-
-    master_key = hashlib.scrypt(
-        password.encode("utf-8"),
-        salt=nonce,
-        n=scrypt_n,
-        r=8,
-        p=1,
-        dklen=64,
+    n = 1 << log_n
+    return hashlib.scrypt(
+        bytes(password),
+        salt=salt,
+        n=n,
+        r=r,
+        p=p,
+        dklen=KEY_LEN,
+        maxmem=2 * 128 * r * n + (1 << 24),
     )
 
-    enc_seed = master_key[:24]
-    pbox_seed = master_key[24:32]
-    mac_key = master_key[32:]
 
-    a = ((enc_seed[0] % 6) + 2) * 8
-
-    valid_b = (3, 5, 7, 9, 11, 13, 15, 17, 19)
-    filtered_b = [val for val in valid_b if a % val != 0]
-    b = filtered_b[enc_seed[1] % len(filtered_b)]
-
-    x = (1, 2, 4, 8)[enc_seed[2] % 4]
-    c = a // x
-    d = enc_seed[3] % 2
-
-    s0_forward = (int.from_bytes(enc_seed[4:6], "big") % 900) + 100
-    s0_backward = (int.from_bytes(enc_seed[6:8], "big") % 900) + 100
-
-    sbox = list(range(16))
-    for i in range(15, 0, -1):
-        j = enc_seed[8 + (15 - i)] % (i + 1)
-        sbox[i], sbox[j] = sbox[j], sbox[i]
-
-    inv_sbox = [0] * 16
-    for idx, val in enumerate(sbox):
-        inv_sbox[val] = idx
-
-    return a, b, c, d, s0_forward, s0_backward, sbox, inv_sbox, pbox_seed, mac_key
+def _as_bytes(value, name: str) -> bytes:
+    if isinstance(value, str):
+        return value.encode("utf-8")
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return bytes(value)
+    raise VornError(f"{name} must be bytes or str.")
 
 
-def _permute_bits(data: bytes, pbox_seed: bytes, inverse: bool = False) -> bytes:
-    total_bits = len(data) * 8
-    if total_bits == 0:
-        return data
+def encrypt(data, password, *, aad=b"", log_n: int = DEFAULT_LOG_N, r: int = 8, p: int = 1, armor: bool = False):
+    """Encrypt data with a password. Returns bytes, or a base64url str when armor=True.
 
-    perm = list(range(total_bits))
-    stream = bytearray()
-    counter = 0
-    needed_bytes = total_bits * 4
-    while len(stream) < needed_bytes:
-        stream.extend(
-            hashlib.blake2b(pbox_seed + counter.to_bytes(4, "big"), digest_size=64).digest()
-        )
-        counter += 1
-
-    for i in range(total_bits - 1, 0, -1):
-        offset = (total_bits - 1 - i) * 4
-        rand_val = int.from_bytes(stream[offset : offset + 4], "big")
-        j = rand_val % (i + 1)
-        perm[i], perm[j] = perm[j], perm[i]
-
-    bits = [(data[idx // 8] >> (7 - (idx % 8))) & 1 for idx in range(total_bits)]
-    out_bits = [0] * total_bits
-
-    if not inverse:
-        for dst, src in enumerate(perm):
-            out_bits[dst] = bits[src]
-    else:
-        for dst, src in enumerate(perm):
-            out_bits[src] = bits[dst]
-
-    out_bytes = bytearray(len(data))
-    for i, bit in enumerate(out_bits):
-        if bit:
-            out_bytes[i // 8] |= 1 << (7 - (i % 8))
-
-    return bytes(out_bytes)
+    The blob is: MAGIC | log_n | r | p | salt | nonce | ciphertext | tag.
+    The whole header and any extra `aad` are authenticated.
+    """
+    _check_scrypt_params(log_n, r, p)
+    data = _as_bytes(data, "data")
+    aad = _as_bytes(aad, "aad")
+    salt = secrets.token_bytes(SALT_LEN)
+    nonce = secrets.token_bytes(NONCE_LEN)
+    header = MAGIC + bytes([log_n, r, p]) + salt + nonce
+    key = _kdf(password, salt, log_n, r, p)
+    blob = header + seal(key, nonce, data, header + aad)
+    if armor:
+        return base64.urlsafe_b64encode(blob).decode("ascii").rstrip("=")
+    return blob
 
 
-def _sign(i: int, c: int, d: int) -> int:
-    block_parity = (i // c) % 2
-    if d == 0:
-        return -1 if block_parity == 0 else 1
-    return 1 if block_parity == 0 else -1
-
-
-def _prime_pass_encrypt(symbols, a: int, b: int, c: int, d: int, s0: int) -> list[int]:
-    prev = s0
-    out = []
-    for i, sym in enumerate(symbols):
-        jump = a + (prev % 16)
-        jumped_prime = _ct_lookup(_PRIMES, sym + jump)
-        offset = (a % b) + (prev % b)
-        cipher_val = jumped_prime + _sign(i, c, d) * offset
-        out.append(cipher_val)
-        prev = cipher_val
-    return out
-
-
-def _prime_pass_decrypt(cipher_vals, a: int, b: int, c: int, d: int, s0: int) -> list[int]:
-    prev = s0
-    out = []
-    for i, c_val in enumerate(cipher_vals):
-        offset = (a % b) + (prev % b)
-        jumped_prime = c_val - _sign(i, c, d) * offset
-        jumped_idx = _ct_prime_index(jumped_prime)
-        jump = a + (prev % 16)
-        out.append(jumped_idx - jump)
-        prev = c_val
-    return out
-
-
-def encrypt(data: bytes | str, password: str, *, _scrypt_n: int = 16384) -> str:
-    if isinstance(data, str):
-        data = data.encode("utf-8")
-
-    nonce = secrets.token_bytes(16)
-    a, b, c, d, s0_f, s0_b, sbox, _, pbox_seed, mac_key = _derive_keys(password, nonce, _scrypt_n)
-
-    nibbles = []
-    for byte in data:
-        nibbles.append(_ct_lookup(sbox, (byte >> 4) & 0x0F))
-        nibbles.append(_ct_lookup(sbox, byte & 0x0F))
-
-    pass1 = _prime_pass_encrypt(nibbles, a, b, c, d, s0_f)
-
-    pass1_bytes = b"".join(val.to_bytes(2, "big") for val in pass1)
-    permuted_bytes = _permute_bits(pass1_bytes, pbox_seed, inverse=False)
-
-    mid_nibbles = []
-    for byte in reversed(permuted_bytes):
-        mid_nibbles.append((byte >> 4) & 0x0F)
-        mid_nibbles.append(byte & 0x0F)
-
-    pass2 = _prime_pass_encrypt(mid_nibbles, a, b, c, d, s0_b)
-
-    nonce_str = "".join(f"{byte:03d}" for byte in nonce)
-    cipher_str = "".join(f"{val:03d}" for val in pass2)
-    payload = nonce_str + cipher_str
-
-    mac_digest = hmac.new(mac_key, payload.encode("ascii"), hashlib.sha256).digest()
-    mac_str = "".join(f"{byte:03d}" for byte in mac_digest)
-
-    return payload + mac_str
-
-
-def decrypt(ciphertext: str, password: str, *, _scrypt_n: int = 16384) -> bytes:
-    if (
-        not isinstance(ciphertext, str)
-        or len(ciphertext) < 144
-        or len(ciphertext) % 3 != 0
-        or not (ciphertext.isascii() and ciphertext.isdigit())
-    ):
-        raise VornError("Malformed ciphertext packet.")
-
-    nonce_str = ciphertext[:48]
-    mac_str = ciphertext[-96:]
-    cipher_str = ciphertext[48:-96]
-
-    try:
-        nonce = bytes(int(nonce_str[i : i + 3]) for i in range(0, 48, 3))
-    except ValueError as exc:
-        raise VornError("Corrupted nonce block.") from exc
-
-    a, b, c, d, s0_f, s0_b, _, inv_sbox, pbox_seed, mac_key = _derive_keys(
-        password, nonce, _scrypt_n
-    )
-
-    expected_mac = hmac.new(mac_key, (nonce_str + cipher_str).encode("ascii"), hashlib.sha256).digest()
-    expected_mac_str = "".join(f"{byte:03d}" for byte in expected_mac)
-    if not hmac.compare_digest(mac_str, expected_mac_str):
-        raise VornError("Authentication failed: invalid password or tampered payload.")
-
-    pass2 = [int(cipher_str[i : i + 3]) for i in range(0, len(cipher_str), 3)]
-    if len(pass2) % 8 != 0:
-        raise VornError("Malformed ciphertext packet.")
-
-    mid_nibbles = _prime_pass_decrypt(pass2, a, b, c, d, s0_b)
-
-    reversed_permuted = bytearray()
-    for i in range(0, len(mid_nibbles), 2):
-        reversed_permuted.append((mid_nibbles[i] << 4) | mid_nibbles[i + 1])
-
-    permuted_bytes = bytes(reversed(reversed_permuted))
-    pass1_bytes = _permute_bits(permuted_bytes, pbox_seed, inverse=True)
-
-    pass1 = [int.from_bytes(pass1_bytes[i : i + 2], "big") for i in range(0, len(pass1_bytes), 2)]
-
-    mapped_nibbles = _prime_pass_decrypt(pass1, a, b, c, d, s0_f)
-    raw_nibbles = [_ct_lookup(inv_sbox, n) for n in mapped_nibbles]
-
-    result = bytearray()
-    for i in range(0, len(raw_nibbles), 2):
-        result.append((raw_nibbles[i] << 4) | raw_nibbles[i + 1])
-
-    return bytes(result)
+def decrypt(blob, password, *, aad=b"") -> bytes:
+    """Decrypt output of encrypt() (bytes or the armored base64url str)."""
+    if isinstance(blob, str):
+        text = blob.strip()
+        try:
+            blob = base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
+        except (binascii.Error, ValueError) as exc:
+            raise VornError("Malformed ciphertext.") from exc
+    blob = bytes(blob)
+    aad = _as_bytes(aad, "aad")
+    if len(blob) < HEADER_LEN + TAG_LEN or blob[: len(MAGIC)] != MAGIC:
+        raise VornError("Malformed ciphertext.")
+    log_n, r, p = blob[4], blob[5], blob[6]
+    _check_scrypt_params(log_n, r, p)
+    salt = blob[7 : 7 + SALT_LEN]
+    nonce = blob[7 + SALT_LEN : HEADER_LEN]
+    header = blob[:HEADER_LEN]
+    key = _kdf(password, salt, log_n, r, p)
+    return unseal(key, nonce, blob[HEADER_LEN:], header + aad)

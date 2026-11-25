@@ -1,3 +1,3 @@
-from .core import VornError, __version__, decrypt, encrypt
+from .core import VornError, __version__, decrypt, encrypt, seal, unseal
 
-__all__ = ["encrypt", "decrypt", "VornError", "__version__"]
+__all__ = ["encrypt", "decrypt", "seal", "unseal", "VornError", "__version__"]

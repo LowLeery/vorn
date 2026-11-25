@@ -1,0 +1,31 @@
+
+ciphertext of 512 KiB zero message (single key/nonce)  (524288 bytes, 4194304 bits)
+  monobit          p = 0.7868  PASS
+  block-frequency  p = 0.5957  PASS
+  runs             p = 0.3875  PASS
+  cumulative-sums  p = 0.5100  PASS
+  byte-chi-square  p = 0.5867  PASS
+
+ciphertext, 8192 messages with counter nonces  (524288 bytes, 4194304 bits)
+  monobit          p = 0.1377  PASS
+  block-frequency  p = 0.2204  PASS
+  runs             p = 0.9970  PASS
+  cumulative-sums  p = 0.2306  PASS
+  byte-chi-square  p = 0.3700  PASS
+
+ciphertext, 8192 messages with counter keys  (524288 bytes, 4194304 bits)
+  monobit          p = 0.6274  PASS
+  block-frequency  p = 0.9201  PASS
+  runs             p = 0.8696  PASS
+  cumulative-sums  p = 0.7353  PASS
+  byte-chi-square  p = 0.5529  PASS
+
+tags of 16384 empty messages with counter nonces  (262144 bytes, 2097152 bits)
+  monobit          p = 0.0257  PASS
+  block-frequency  p = 0.9426  PASS
+  runs             p = 0.4604  PASS
+  cumulative-sums  p = 0.0130  PASS
+  byte-chi-square  p = 0.2775  PASS
+
+20/20 tests passed at alpha = 0.01
+(with alpha = 0.01 about 1 in 100 tests fails by chance even for ideal random data)

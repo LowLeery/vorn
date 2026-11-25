@@ -1,0 +1,21 @@
+PART 1: Vorn-P permutation avalanche (512-bit state)
+rounds | mean HD (ideal 256) | per-input-bit mean HD min..max | max |z| | cells |z|>4
+     1 |               26.62 |   10.52 ..   41.02            |   9.80 | 249993   (0s)
+     2 |              182.91 |  134.58 ..  225.35            |   9.80 | 113029   (1s)
+     3 |              255.77 |  252.88 ..  258.66            |   5.31 |     27   (1s)
+     4 |              256.02 |  252.79 ..  259.45            |   4.90 |     18   (1s)
+     5 |              256.05 |  252.69 ..  259.19            |   4.69 |     14   (1s)
+     6 |              256.03 |  252.58 ..  259.57            |   4.29 |      8   (1s)
+     8 |              256.00 |  252.41 ..  260.10            |   4.49 |      7   (2s)
+    10 |              256.02 |  252.08 ..  259.05            |   4.49 |     11   (3s)
+    12 |              256.04 |  252.15 ..  259.05            |   4.29 |     16   (3s)
+    20 |              255.99 |  252.64 ..  260.00            |   4.29 |     12   (4s)
+(random-function reference: max |z| about 4.9-5.3, about 16 cells above 4)
+
+PART 2: Vorn-2 AEAD single-bit avalanche (fraction of output bits that change, ideal 0.5)
+key bit -> tag                                                 mean 0.5001  min 0.367  max 0.633
+nonce bit -> tag                                               mean 0.4999  min 0.375  max 0.672
+aad bit -> tag                                                 mean 0.5007  min 0.367  max 0.625
+plaintext bit (block 0) -> ciphertext block 1                  mean 0.4988  min 0.402  max 0.598
+plaintext bit (block 0) -> tag                                 mean 0.5000  min 0.359  max 0.641
+plaintext bit (block 0) -> ciphertext block 0 (expect 1 bit)   mean 0.0039  min 0.004  max 0.004
