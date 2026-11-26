@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/LowLeery/vorn/actions/workflows/ci.yml/badge.svg)](https://github.com/LowLeery/vorn/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/vorn)](https://pypi.org/project/vorn/)
-[![npm](https://img.shields.io/npm/v/vorn)](https://www.npmjs.com/package/@leery10/vorn)
+[![npm](https://img.shields.io/npm/v/@leery10/vorn)](https://www.npmjs.com/package/@leery10/vorn)
 [![crates.io](https://img.shields.io/crates/v/vorn)](https://crates.io/crates/vorn)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
