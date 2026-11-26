@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/LowLeery/vorn/actions/workflows/ci.yml/badge.svg)](https://github.com/LowLeery/vorn/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/vorn)](https://pypi.org/project/vorn/)
-[![npm](https://img.shields.io/npm/v/vorn)](https://www.npmjs.com/package/vorn)
+[![npm](https://img.shields.io/npm/v/@leery10/vorn)](https://www.npmjs.com/package/@leery10/vorn)
 [![crates.io](https://img.shields.io/crates/v/vorn)](https://crates.io/crates/vorn)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -26,7 +26,7 @@ blob = encrypt("hello", "correct-horse-battery-staple")
 print(decrypt(blob, "correct-horse-battery-staple"))   # b'hello'
 ```
 
-**JavaScript** (Node 18+): `npm install vorn`
+**JavaScript** (Node 18+): `npm install @leery10/vorn`
 
 ```js
 import { encrypt, decrypt } from 'vorn';
@@ -71,7 +71,7 @@ Full details, constants table and test vectors: **[SPEC.md](SPEC.md)**.
 | | package | API | speed* | tests |
 |---|---|---|---|---|
 | Python | [`vorn`](https://pypi.org/project/vorn/) | password + raw AEAD | ~0.4 MB/s | 84 |
-| JavaScript | [`vorn`](https://www.npmjs.com/package/vorn) | password + raw AEAD, TypeScript types | ~40 MB/s | 19 |
+| JavaScript | [`vorn`](https://www.npmjs.com/package/@leery10/vorn) | password + raw AEAD, TypeScript types | ~40 MB/s | 19 |
 | Rust | [`vorn`](https://crates.io/crates/vorn) | password + raw AEAD, zero dependencies | ~100 MB/s | 24 |
 
 \*single core of a cloud VM, large messages. Python is pure Python and meant for small payloads.
