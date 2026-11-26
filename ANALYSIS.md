@@ -29,11 +29,13 @@ were run are **inconclusive** (section 4). Treat Vorn-2 as an unreviewed researc
   password blobs; rejection of truncation and extension; associated-data, key and nonce
   binding; unambiguous AD/message boundary; malformed inputs; refusal of abusive scrypt
   parameters; a check that the shared vector files are in sync.
-- JavaScript: 17 tests, including all shared vectors (so the JS code reproduces the Python
+- JavaScript: 19 tests, including all shared vectors (so the JS code reproduces the Python
   output bit for bit) and the same rejection tests.
-- Rust: 9 tests plus a doctest, same shared vectors.
-- Cross-language: a password blob produced by Node was decrypted by Python and the other way
-  round (unicode password, associated data, armored form).
+- Rust: 24 tests, same shared vectors, plus the password container. The hand-written SHA-256,
+  HMAC-SHA-256 and scrypt are checked against Python's `hashlib`/`hmac` (including the RFC 7914
+  case with p = 16) and Rust reproduces Python's password containers bit for bit.
+- Cross-language: password blobs were decrypted across Python, Node and Rust in both directions
+  (unicode password, associated data, default scrypt cost, armored form for Python and Node).
 
 ## 2. Diffusion of the permutation (avalanche)
 
@@ -387,7 +389,8 @@ Measured on one core of a cloud VM.
 | Rust 1.97, release | about 90 to 120 MB/s (50 MB seal in 0.55 s) | zero dependencies |
 
 Ciphertext expansion is 16 bytes (tag), plus 39 bytes of header in the password container.
-Password encryption with the default scrypt cost (n = 2^16) takes about 0.25 s. For comparison,
+Password encryption with the default scrypt cost (n = 2^16) takes about 0.2 s in Python (OpenSSL)
+and in Rust (own implementation). For comparison,
 Vorn 0.1.0 processed about 6 kB/s with a 24x ciphertext expansion.
 
 ## 7. Lessons from Vorn 0.1.0
@@ -411,6 +414,6 @@ considered insecure and withdrawn.
   proof or bound.
 - Independent implementations in other languages against `vectors/vectors.json`.
 - Trail search to settle whether the prime rule matters at all (section 5).
-- Constant-time hardened implementation; Rust password API.
+- Constant-time hardened implementation (including the Rust scrypt).
 
 Findings of any kind, including failed attacks, are welcome as GitHub issues.

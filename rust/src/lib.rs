@@ -21,6 +21,10 @@
 
 use std::fmt;
 
+pub mod password;
+mod scrypt;
+mod sha256;
+
 /// Key length in bytes.
 pub const KEY_LEN: usize = 32;
 /// Nonce length in bytes.
@@ -70,13 +74,20 @@ pub const ROUND_CONSTANTS: [u32; ROUNDS] = round_constants();
 const COLUMNS: [[usize; 4]; 4] = [[0, 4, 8, 12], [1, 5, 9, 13], [2, 6, 10, 14], [3, 7, 11, 15]];
 const DIAGONALS: [[usize; 4]; 4] = [[0, 5, 10, 15], [1, 6, 11, 12], [2, 7, 8, 13], [3, 4, 9, 14]];
 
-/// Errors returned by [`unseal`].
+/// Errors returned by this crate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Error {
-    /// The input is too short to contain a tag.
+    /// The input is too short or is not a Vorn container.
     Malformed,
-    /// Wrong key, wrong nonce, wrong associated data, or modified ciphertext.
+    /// Wrong key, wrong nonce, wrong associated data, wrong password, or modified ciphertext.
     Authentication,
+    /// scrypt parameters outside the supported range.
+    InvalidParameters,
+    /// An empty password was supplied.
+    EmptyPassword,
+    /// No operating-system randomness source is available (see [`password::encrypt`]).
+    Randomness,
 }
 
 impl fmt::Display for Error {
@@ -84,8 +95,11 @@ impl fmt::Display for Error {
         match self {
             Error::Malformed => f.write_str("malformed ciphertext"),
             Error::Authentication => {
-                f.write_str("authentication failed: wrong key or modified data")
+                f.write_str("authentication failed: wrong key or password, or modified data")
             }
+            Error::InvalidParameters => f.write_str("unsupported scrypt parameters"),
+            Error::EmptyPassword => f.write_str("password must not be empty"),
+            Error::Randomness => f.write_str("no operating-system randomness source available"),
         }
     }
 }

@@ -50,3 +50,10 @@ container), and open a pull request adding a folder and a row in the README tabl
 
 Small, readable code. Claims in documentation must be backed by a script in `analysis/` or a
 test, and anything that is not done yet should be listed as not done.
+
+## Releasing
+
+The version lives in `python/pyproject.toml`, `python/vorn/core.py`, `js/package.json`,
+`js/src/index.js`, `rust/Cargo.toml` and `CITATION.cff`; keep them equal. PyPI and crates.io
+never accept the same version twice. For npm, packages are *staged* (`npm stage publish`) and
+then approved with 2FA (`npm stage approve`), which needs npm 11.15+ and Node 22.14+.

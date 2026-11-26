@@ -222,8 +222,8 @@ Informal reasoning only, not a proof and not a claim:
 | Python (reference) | `python/vorn/core.py` | permutation, AEAD, password container |
 | Python (independent cross-check) | `python/tests/reference.py` | permutation, AEAD (test use only) |
 | JavaScript / Node.js | `js/src/index.js` | permutation, AEAD, password container |
-| Rust | `rust/src/lib.rs` | permutation, AEAD |
+| Rust | `rust/src/lib.rs`, `rust/src/password.rs` | permutation, AEAD, password container (own scrypt, no dependencies) |
 
 All of them must reproduce every vector in `vectors/vectors.json`. The specification is
-versioned with the packages (current: **0.2.1**, wire format unchanged since 0.2.0). Any change
+versioned with the packages (current: **0.2.3**, wire format unchanged since 0.2.0; 0.2.2 was skipped). Any change
 that alters ciphertext or tags requires a new major-minor version and new vectors.

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/LowLeery/vorn/actions/workflows/ci.yml/badge.svg)](https://github.com/LowLeery/vorn/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/vorn)](https://pypi.org/project/vorn/)
-[![npm](https://img.shields.io/npm/v/@leery10/vorn)](https://www.npmjs.com/package/@leery10/vorn)
+[![npm](https://img.shields.io/npm/v/vorn)](https://www.npmjs.com/package/vorn)
 [![crates.io](https://img.shields.io/crates/v/vorn)](https://crates.io/crates/vorn)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -35,11 +35,13 @@ const blob = encrypt('hello', 'correct-horse-battery-staple');
 console.log(Buffer.from(decrypt(blob, 'correct-horse-battery-staple')).toString()); // hello
 ```
 
-**Rust**: `cargo add vorn` (raw AEAD with your own 32-byte key; password API not included yet)
+**Rust**: `cargo add vorn` (zero dependencies)
 
 ```rust
-let sealed = vorn::seal(&key, &nonce, b"hello", b"header");
-let opened = vorn::unseal(&key, &nonce, &sealed, b"header")?;
+use vorn::password::{decrypt, encrypt, Params};
+
+let blob = encrypt(b"hello", b"correct-horse-battery-staple", b"", Params::default())?;
+let text = decrypt(&blob, b"correct-horse-battery-staple", b"")?;   // b"hello"
 ```
 
 ## How it works
@@ -69,13 +71,13 @@ Full details, constants table and test vectors: **[SPEC.md](SPEC.md)**.
 | | package | API | speed* | tests |
 |---|---|---|---|---|
 | Python | [`vorn`](https://pypi.org/project/vorn/) | password + raw AEAD | ~0.4 MB/s | 84 |
-| JavaScript | [`vorn`](https://www.npmjs.com/package/vorn) | password + raw AEAD, TypeScript types | ~40 MB/s | 17 |
-| Rust | [`vorn`](https://crates.io/crates/vorn) | raw AEAD, zero dependencies | ~100 MB/s | 9 + doctest |
+| JavaScript | [`vorn`](https://www.npmjs.com/package/vorn) | password + raw AEAD, TypeScript types | ~40 MB/s | 19 |
+| Rust | [`vorn`](https://crates.io/crates/vorn) | password + raw AEAD, zero dependencies | ~100 MB/s | 24 |
 
 \*single core of a cloud VM, large messages. Python is pure Python and meant for small payloads.
 
 All three pass the same known-answer vectors ([vectors/vectors.json](vectors/vectors.json)),
-and the Python and JavaScript password containers decrypt each other's output.
+and the password containers of all three decrypt each other's output.
 
 ## Security status
 
@@ -114,7 +116,7 @@ implementations in other languages are very welcome and can be checked against
 - [ ] Differential and linear trail search (MILP/SAT) and a real bound on active quarter-rounds
 - [ ] Reduced-round key-recovery attempts, algebraic-degree and integral analysis
 - [ ] Write-up for IACR ePrint, then outside review
-- [ ] Password API for Rust (scrypt), WebAssembly/browser build, Go port
+- [ ] WebAssembly/browser build, Go port
 - [ ] Constant-time hardened implementation
 
 ## Repository layout
