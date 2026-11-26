@@ -14,7 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 from vorn import core  # noqa: E402
 
 ALPHA = 0.01

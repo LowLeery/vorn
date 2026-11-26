@@ -173,6 +173,14 @@ pt    = 54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c
 out   = ba0b2da78b07eab84df5543e632ca0bc0368f7597118dd367954bf5d708d20416069231d312da7ac96e76ba67e75b2406619b9dd586c2470216ca6   (ciphertext || tag)
 ```
 
+Password container (section 4), fixed salt `000102...0f`, nonce `101112...1f`, scrypt
+`n = 2^10, r = 8, p = 1`, password (UTF-8) `pässwörd-🔑`, user aad `ctx`,
+plaintext `Vorn cross-language container test`:
+
+```
+blob  = 56524e320a0801000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f30eac20ba907f66495024bc3f3d9813cfd8e23529d48796945200368a2de34b77ed5e8498516ad2637e5a4636a2c809e7998
+```
+
 ## 6. Design rationale
 
 - **Sponge/duplex mode** gives a single pass, one primitive for encryption and authentication,
@@ -184,7 +192,10 @@ out   = ba0b2da78b07eab84df5543e632ca0bc0368f7597118dd367954bf5d708d20416069231d
   (which also break the rotational and slide symmetries of the bare core) are essential.
 - **Prime hopping**: constants from the square roots of primes, injected into a lane chosen by
   the prime. This is the identity of Vorn. Its security value is limited to asymmetry between
-  rounds; it is not claimed to add strength beyond ordinary round constants.
+  rounds; it is not claimed to add strength beyond ordinary round constants. An ablation
+  (ANALYSIS.md section 5) found no measurable difference between the prime rule, a fixed lane,
+  round robin and random lanes. Primes were also tried for the rotation
+  constants and for a word shuffle without benefit (ANALYSIS.md section 5.2).
 - **20 rounds** were chosen conservatively relative to measured diffusion: full avalanche is
   reached after 3 rounds (see ANALYSIS.md). Diffusion alone does not bound differential or linear
   attacks, so the margin is a heuristic.
@@ -204,7 +215,15 @@ Informal reasoning only, not a proof and not a claim:
 - Version 0.1.0 of the `vorn` package used a different, unrelated and broken construction. It is
   not compatible with Vorn-2 and should not be used.
 
-## 8. Reference code
+## 8. Implementations and versioning
 
-`vorn/core.py` is the reference implementation; `tests/reference.py` is an independent
-second implementation used only for cross-checking.
+| implementation | location | covers |
+|---|---|---|
+| Python (reference) | `python/vorn/core.py` | permutation, AEAD, password container |
+| Python (independent cross-check) | `python/tests/reference.py` | permutation, AEAD (test use only) |
+| JavaScript / Node.js | `js/src/index.js` | permutation, AEAD, password container |
+| Rust | `rust/src/lib.rs` | permutation, AEAD |
+
+All of them must reproduce every vector in `vectors/vectors.json`. The specification is
+versioned with the packages (current: **0.2.1**, wire format unchanged since 0.2.0). Any change
+that alters ciphertext or tags requires a new major-minor version and new vectors.

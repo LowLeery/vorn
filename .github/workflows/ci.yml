@@ -4,11 +4,9 @@ on:
   push:
     branches: [ main, master ]
   pull_request:
-  release:
-    types: [ published ]
 
 jobs:
-  test:
+  python:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -20,21 +18,31 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: python -m pip install pytest
       - run: python -m pytest
+        working-directory: python
 
-  # Runs only when a GitHub Release is published. If you already uploaded this version to
-  # PyPI with the publish script, do not create a release with the same version number.
-  deploy:
-    needs: test
-    if: github.event_name == 'release'
+  javascript:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: npm test
+        working-directory: js
+
+  rust:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          python-version: "3.12"
-      - run: python -m pip install build twine
-      - run: python -m build
-      - env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: twine upload dist/*
+          components: clippy, rustfmt
+      - run: cargo test
+        working-directory: rust
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: rust
+      - run: cargo fmt --check
+        working-directory: rust

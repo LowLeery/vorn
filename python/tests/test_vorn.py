@@ -175,3 +175,9 @@ def test_large_message():
     key, nonce = os.urandom(32), os.urandom(16)
     data = os.urandom(200_000)
     assert unseal(key, nonce, seal(key, nonce, data, b""), b"") == data
+
+
+def test_password_container_known_answer():
+    for v in vectors.PASSWORD_VECTORS:
+        blob = bytes.fromhex(v["blob"])
+        assert decrypt(blob, v["password"], aad=bytes.fromhex(v["aad"])) == bytes.fromhex(v["plaintext"])

@@ -1,0 +1,57 @@
+Ablation of the constant-injection rule in Vorn-P (same quarter-rounds, same constants)
+E1 columns: max |z| / cells above 6 / cells above 4   (random permutation: ~5 / 0 / ~16)
+
+== prime hopping (Vorn)   lanes: [2, 3, 5, 7, 11, 13, 1, 3, 7, 13]...
+rounds | E1 max|z|  >6    >4 | column-rotation symmetry holds | zero state is fixed point
+     1 |     90.51 255791 256063 |                           0.00 | False
+     2 |     90.51 178274 186385 |                           0.00 | False
+     3 |     31.91  1880  3560 |                           0.00 | False
+     4 |      4.64     0    21 |                           0.00 | False
+     5 |      4.64     0    20 |                           0.00 | False
+     6 |      4.62     0    12 |                           0.00 | False
+    20 |      5.17     0    11 |                           0.00 | False
+
+== fixed lane 0   lanes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]...
+rounds | E1 max|z|  >6    >4 | column-rotation symmetry holds | zero state is fixed point
+     1 |     90.51 255811 256081 |                           0.00 | False
+     2 |     90.51 178390 186346 |                           0.00 | False
+     3 |     32.70  1800  3331 |                           0.00 | False
+     4 |      4.86     0    22 |                           0.00 | False
+     5 |      4.51     0    11 |                           0.00 | False
+     6 |      4.33     0    17 |                           0.00 | False
+    20 |      4.80     0    19 |                           0.00 | False
+
+== round robin   lanes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]...
+rounds | E1 max|z|  >6    >4 | column-rotation symmetry holds | zero state is fixed point
+     1 |     90.51 255788 256060 |                           0.00 | False
+     2 |     90.51 178273 186552 |                           0.00 | False
+     3 |     32.70  1781  3360 |                           0.00 | False
+     4 |      4.38     0    14 |                           0.00 | False
+     5 |      4.88     0    14 |                           0.00 | False
+     6 |      4.97     0    14 |                           0.00 | False
+    20 |      4.82     0    26 |                           0.00 | False
+
+== random lanes   lanes: [1, 14, 3, 0, 7, 7, 3, 5, 9, 7]...
+rounds | E1 max|z|  >6    >4 | column-rotation symmetry holds | zero state is fixed point
+     1 |     90.51 255769 256064 |                           0.00 | False
+     2 |     90.51 179419 187377 |                           0.00 | False
+     3 |     32.75  1865  3457 |                           0.00 | False
+     4 |      5.52     0    16 |                           0.00 | False
+     5 |      4.97     0    16 |                           0.00 | False
+     6 |      4.86     0    14 |                           0.00 | False
+    20 |      4.57     0    16 |                           0.00 | False
+
+== no constants   lanes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]...
+rounds | E1 max|z|  >6    >4 | column-rotation symmetry holds | zero state is fixed point
+     1 |     90.51 255788 256079 |                           1.00 | True
+     2 |     90.51 179320 187424 |                           1.00 | True
+     3 |     32.92  1937  3604 |                           1.00 | True
+     4 |      4.77     0    10 |                           1.00 | True
+     5 |      5.30     0    20 |                           1.00 | True
+     6 |      4.42     0    11 |                           1.00 | True
+    20 |      4.88     0    21 |                           1.00 | True
+
+
+real	1m19.611s
+user	1m19.106s
+sys	0m0.076s

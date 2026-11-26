@@ -12,7 +12,7 @@ import secrets
 import struct
 from math import isqrt
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __all__ = ["encrypt", "decrypt", "seal", "unseal", "VornError", "__version__"]
 
 # ---------------------------------------------------------------- parameters

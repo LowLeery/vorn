@@ -1,0 +1,43 @@
+{
+  "name": "vorn",
+  "version": "0.2.1",
+  "description": "Experimental duplex-sponge AEAD with an ARX permutation and prime-hopping constants. Research use only.",
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js"
+    }
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test test/vorn.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "cryptography",
+    "aead",
+    "sponge",
+    "cipher",
+    "arx",
+    "experimental"
+  ],
+  "author": "LowLeery",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LowLeery/vorn.git"
+  },
+  "homepage": "https://github.com/LowLeery/vorn",
+  "bugs": {
+    "url": "https://github.com/LowLeery/vorn/issues"
+  }
+}
