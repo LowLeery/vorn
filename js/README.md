@@ -16,13 +16,13 @@ implementations produce identical results.
 ## Install
 
 ```bash
-npm install vorn
+npm install @leery10/vorn
 ```
 
 ## Password mode
 
 ```js
-import { encrypt, decrypt, VornError } from 'vorn';
+import { encrypt, decrypt, VornError } from '@leery10/vorn';
 
 const blob = encrypt('hello', 'correct-horse-battery-staple');                 // Uint8Array
 const text = encrypt('hello', 'correct-horse-battery-staple', { armor: true }); // base64url string
@@ -47,7 +47,7 @@ be decrypted in the other.
 
 ```js
 import { randomBytes } from 'node:crypto';
-import { seal, unseal } from 'vorn';
+import { seal, unseal } from '@leery10/vorn';
 
 const key = new Uint8Array(randomBytes(32));
 const nonce = new Uint8Array(randomBytes(16)); // never reuse a (key, nonce) pair

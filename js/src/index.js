@@ -6,7 +6,7 @@
  */
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 
-export const VERSION = '0.2.3';
+export const VERSION = '0.2.4';
 
 const ROUNDS = 20;
 const RATE = 32;

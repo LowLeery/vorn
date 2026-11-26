@@ -1,0 +1,12 @@
+N = 65536 random (key, nonce) pairs per row; flag threshold |z| > 6.0
+
+rounds | K1 max|z| (key bit, out bit) | K2 max|z| (pair, out bit) | verdict
+control (key XORed into output): K1 max|z| = 256.0 -> flagged, test works
+   1   |   4.53 (230, 85)           |   4.76 (158,118)         | none
+   2   |   4.30 ( 48,193)           |   4.49 (464,236)         | none
+   3   |   4.62 (160, 78)           |   4.31 (319, 78)         | none
+   4   |   4.81 (194, 33)           |   4.48 (279,211)         | none
+   5   |   4.45 ( 76,124)           |   4.70 (303, 62)         | none
+   6   |   4.48 ( 44,184)           |   4.45 ( 29,171)         | none
+   8   |   4.23 (122,241)           |   4.35 (482,160)         | none
+  20   |   4.05 (252,255)           |   4.52 (370,205)         | none

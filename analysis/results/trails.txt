@@ -1,0 +1,10 @@
+self-check (n=6, exact counts vs Lipmaa-Moriai vs DFS): PASS
+32 one-bit rate starts, beam 60, 2 outputs per addition
+
+rounds | lightest trail found (weight) | median over starts
+   1   |     6  (probability 2^-6)      | 8
+   2   |    63  (probability 2^-63)      | 78
+   3   |   200  (probability 2^-200)      | 205
+   4   |   368  (probability 2^-368)      | 387
+
+(took 269 s)

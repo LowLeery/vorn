@@ -22,6 +22,9 @@ python analysis/statistical.py
 python analysis/reduced_round.py
 python analysis/ablation.py
 python analysis/prime_roles.py
+python analysis/trails.py        # pure Python, about 5 minutes
+python analysis/degree.py
+python analysis/key_bias.py
 ```
 
 ## Test vectors

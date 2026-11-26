@@ -405,11 +405,13 @@ considered insecure and withdrawn.
 
 ## 8. Not done yet (invitation to reviewers)
 
-- Search for differential and linear trails (MILP / SAT) and a bound on active quarter-rounds;
-  a working linear analysis at all (section 4).
-- Integral, cube, algebraic-degree and rotational/slide analysis of Vorn-P beyond the one 2^14
-  cube tested.
-- Key-recovery attempts on reduced-round Vorn-2 (for example 4 to 8 rounds).
+- A *lower bound* on differential trail weight (MILP / SAT) and on active quarter-rounds;
+  section 9.1 only gives what a heuristic search finds. A working linear analysis at all
+  (section 4).
+- Optimised integral and cube attacks, rotational and slide analysis of Vorn-P (section 9.2
+  is a random-cube estimate).
+- Real key-recovery attempts on reduced-round Vorn-2 (for example 2 to 6 rounds); section 9.3
+  only tests simple biases.
 - Review of the duplex framing (padding, domain separation, key injection) and a security
   proof or bound.
 - Independent implementations in other languages against `vectors/vectors.json`.
@@ -417,3 +419,53 @@ considered insecure and withdrawn.
 - Constant-time hardened implementation (including the Rust scrypt).
 
 Findings of any kind, including failed attacks, are welcome as GitHub issues.
+
+## 9. Trail search, algebraic degree and key leakage (new in 0.2.4)
+
+Three more experiments, all reproducible with the scripts in `analysis/` and outputs in
+`analysis/results/`. None of them is a proof.
+
+### 9.1 Differential trail search (`analysis/trails.py`)
+
+For XOR differences, only modular addition is non-linear. The script uses the exact
+Lipmaa-Moriai weight of an addition (self-checked against brute-force counts for 6-bit words)
+and runs a beam search over the quarter-rounds of Vorn-P, starting from 32 one-bit differences
+in the rate (the part an attacker controls when absorbing a message): the 2 lightest output
+differences are kept per addition and the 60 lightest states per step. Weight w means a
+characteristic of probability 2^-w.
+
+| rounds | lightest trail found | median over starts |
+|---|---|---|
+| 1 | 2^-6 | 2^-8 |
+| 2 | 2^-63 | 2^-78 |
+| 3 | 2^-200 | 2^-205 |
+| 4 | 2^-368 | 2^-387 |
+
+Reading: a beam search finds only *upper* bounds on the true minimum weight (a lighter trail
+may exist), so this shows what a simple attacker finds, not a security bound. Within that
+limit, the picture is consistent with section 4: a 2-round characteristic exists, and from 3
+rounds on the best trail found is already beyond 2^-128, so a single differential
+characteristic gives nothing against 20 rounds. Not covered: truncated and impossible
+differentials, clustering of many trails, differences with several active bits at the start,
+rotational differences, and the *linear* case (there is still no working linear analysis).
+A proper lower bound needs a MILP or SAT search, which was not available here.
+
+### 9.2 Algebraic degree estimate (`analysis/degree.py`)
+
+XOR of an output bit over a random k-dimensional input cube is 1 with probability 0.5 for a
+random function. For Vorn-P with random cubes (not optimised), 1 round gives about 0 for
+k >= 2, 2 rounds give 0.15 to 0.25 up to k = 14, and from 3 rounds on the sums look random
+for every k tested (0.49 to 0.51). This agrees with the full diffusion after 3 rounds and
+with the integral distinguishers of section 4 existing only up to 3 rounds. Optimised cubes
+and higher k could do better; this is an estimate, not a degree bound.
+
+### 9.3 Key leakage into the keystream (`analysis/key_bias.py`)
+
+For 1 to 8 and 20 rounds, 2^16 random key and nonce pairs: correlation of every key bit (and
+of 512 XORs of two key bits) with every bit of the first keystream block. Largest |z| in every
+row: 4.0 to 4.8, as expected for random data (threshold 6). A positive control (key XORed
+straight into the output) gives |z| = 256, so the test machinery works. Like the linear
+tests, these first and second order statistics are weak and probably do not see 1-round
+leaks that need multi-bit relations; so this shows only that no simple bias exists, and it is
+**not** a key-recovery attempt. No actual key-recovery attack on reduced rounds was tried.
+

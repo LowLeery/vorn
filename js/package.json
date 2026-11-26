@@ -1,6 +1,6 @@
 {
-  "name": "vorn",
-  "version": "0.2.3",
+  "name": "@leery10/vorn",
+  "version": "0.2.4",
   "description": "Experimental duplex-sponge AEAD with an ARX permutation and prime-hopping constants. Research use only.",
   "type": "module",
   "main": "./src/index.js",

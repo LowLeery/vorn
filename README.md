@@ -29,7 +29,7 @@ print(decrypt(blob, "correct-horse-battery-staple"))   # b'hello'
 **JavaScript** (Node 18+): `npm install @leery10/vorn`
 
 ```js
-import { encrypt, decrypt } from 'vorn';
+import { encrypt, decrypt } from '@leery10/vorn';
 
 const blob = encrypt('hello', 'correct-horse-battery-staple');
 console.log(Buffer.from(decrypt(blob, 'correct-horse-battery-staple')).toString()); // hello
@@ -71,7 +71,7 @@ Full details, constants table and test vectors: **[SPEC.md](SPEC.md)**.
 | | package | API | speed* | tests |
 |---|---|---|---|---|
 | Python | [`vorn`](https://pypi.org/project/vorn/) | password + raw AEAD | ~0.4 MB/s | 84 |
-| JavaScript | [`vorn`](https://www.npmjs.com/package/@leery10/vorn) | password + raw AEAD, TypeScript types | ~40 MB/s | 19 |
+| JavaScript | [`@leery10/vorn`](https://www.npmjs.com/package/@leery10/vorn) | password + raw AEAD, TypeScript types | ~40 MB/s | 19 |
 | Rust | [`vorn`](https://crates.io/crates/vorn) | password + raw AEAD, zero dependencies | ~100 MB/s | 24 |
 
 \*single core of a cloud VM, large messages. Python is pure Python and meant for small payloads.
@@ -89,14 +89,19 @@ What has been done ([ANALYSIS.md](ANALYSIS.md) has the data and the scripts to r
 - Statistical tests in the style of NIST SP 800-22 on cipher output: 20 of 20 pass.
 - Reduced-round experiments: differential and integral distinguishers exist up to 3 rounds and
   vanish from round 4 on, a 5x margin *against these simple tests*.
+- Differential trails: a beam search finds a 2-round characteristic of probability 2^-63; the best found
+  for 3 rounds is 2^-200 and for 4 rounds 2^-368 (a heuristic search, not a lower bound).
+- Algebraic degree (random cubes) looks random from 3 rounds; no key-bit bias in the keystream at
+  any tested round count (positive control passes).
 - Ablation: the prime rule is indistinguishable from fixed, sequential or random placement.
   Two more attempts to give primes a useful role (rotation constants, word shuffle) also showed
   no benefit; the prime-stride shuffle turned out to be structurally broken.
 
 What has **not** been done, and matters far more:
 
-- No differential/linear trail search, no algebraic or integral analysis beyond the above, no
-  key-recovery attempts on reduced rounds, no third-party review.
+- No proven bound on trails (the search above is heuristic), no linear trail analysis, no
+  optimised integral or algebraic attacks, no real key-recovery attempts on reduced rounds, no
+  third-party review.
 - The linear tests included are **inconclusive** (they do not detect even 1 round).
 - The implementations are not hardened against side channels and do not wipe memory.
 
@@ -113,7 +118,7 @@ implementations in other languages are very welcome and can be checked against
 
 ## Roadmap
 
-- [ ] Differential and linear trail search (MILP/SAT) and a real bound on active quarter-rounds
+- [ ] Differential and linear trail *bounds* (MILP/SAT) and a real bound on active quarter-rounds
 - [ ] Reduced-round key-recovery attempts, algebraic-degree and integral analysis
 - [ ] Write-up for IACR ePrint, then outside review
 - [ ] WebAssembly/browser build, Go port
